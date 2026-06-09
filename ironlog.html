@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="Iron Log"/>
+<meta name="theme-color" content="#0A0A0A"/>
+<title>Iron Log</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/recharts/2.8.0/Recharts.min.js"></script>
+<style>
+  html,body{margin:0;padding:0;background:#0A0A0A;color:#F0F0F0;font-family:'DM Mono','Courier New',monospace;-webkit-tap-highlight-color:transparent;overscroll-behavior:none}
+  *{box-sizing:border-box}
+  @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Bebas+Neue&display=swap');
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect } = React;
+const { LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } = Recharts;
+
+const STORAGE_KEY = "ironlog-v3";
+
+const STRENGTH_PLAN = {
+  "Push": {
+    type:"strength",color:"#E8FF47",day:"Mon",
+    exercises:[
+      {name:"Bench Press",sets:4,reps:"6-8",notes:"Primary overload lift — log weight every session"},
+      {name:"Incline DB Press",sets:3,reps:"8-10",notes:"Upper chest emphasis, controlled eccentric"},
+      {name:"Cable Fly",sets:3,reps:"12-15",notes:"Full stretch at bottom, squeeze at top"},
+      {name:"Overhead Press",sets:3,reps:"8-10",notes:"Brace core, no lumbar flare"},
+      {name:"Lateral Raises",sets:4,reps:"15-20",notes:"Light, strict, high volume"},
+      {name:"Tricep Pushdown",sets:3,reps:"12-15",notes:"Rope attachment, full extension"},
+    ]
+  },
+  "Pull": {
+    type:"strength",color:"#E8FF47",day:"Tue",
+    exercises:[
+      {name:"Deadlift",sets:3,reps:"5",notes:"RPE 8 — two reps in reserve, 3s eccentric on working sets"},
+      {name:"Weighted Pull-ups",sets:4,reps:"6-8",notes:"Full ROM, 3s eccentric"},
+      {name:"Cable Row",sets:3,reps:"10-12",notes:"V-bar neutral grip, chest to pad, retract scapula hard"},
+      {name:"Face Pulls",sets:3,reps:"15-20",notes:"Rear delt + rotator cuff health"},
+      {name:"Hammer Curls",sets:3,reps:"10-12",notes:"Brachialis builder"},
+      {name:"Incline DB Curl",sets:3,reps:"12-15",notes:"Stretch-focused, slow at bottom"},
+    ]
+  },
+  "Legs": {
+    type:"strength",color:"#E8FF47",day:"Thu",
+    exercises:[
+      {name:"Squat",sets:4,reps:"6-8",notes:"Below parallel, stay braced throughout"},
+      {name:"Romanian Deadlift",sets:3,reps:"10-12",notes:"3s eccentric, feel hamstring tension at bottom"},
+      {name:"Leg Press",sets:3,reps:"12-15",notes:"High & wide foot placement"},
+      {name:"Walking Lunges",sets:3,reps:"12/leg",notes:"Drive through front heel"},
+      {name:"Leg Curl",sets:3,reps:"12-15",notes:"Lying preferred, squeeze at top"},
+      {name:"Calf Raises",sets:4,reps:"15-20",notes:"Full ROM, pause at bottom stretch"},
+    ]
+  }
+};
+
+const CARDIO_PLAN = {
+  "Cardio + Core": {
+    type:"cardio",color:"#47CFFF",day:"Wed",tag:"FAT LOSS + ABS",duration:"45-50 min",
+    goal:"Zone 2 run builds fat oxidation — this is how body fat actually comes off. Core work directly after is more effective when fatigued. Target 10:30-11:00/km, fully conversational. HR 130-150.",
+    exercises:[
+      {name:"Zone 2 Run",sets:1,reps:"25-30 min",notes:"HR 130-150. If you can't speak in sentences, slow down."},
+      {name:"Hanging Leg Raises",sets:4,reps:"12-15",notes:"Posterior pelvic tilt, no swinging"},
+      {name:"Cable Crunch",sets:3,reps:"15-20",notes:"Round the spine fully, don't just lean"},
+      {name:"Ab Wheel Rollout",sets:3,reps:"8-10",notes:"Control the negative, don't collapse"},
+      {name:"Plank",sets:3,reps:"45-60s",notes:"Glutes squeezed, posterior tilt"},
+      {name:"Oblique Twists",sets:3,reps:"15/side",notes:"Loaded if possible, cable or plate"},
+    ]
+  },
+  "Power + Athleticism": {
+    type:"cardio",color:"#FF47B8",day:"Fri",tag:"ATHLETIC CONDITIONING",duration:"35-40 min",
+    goal:"Explosive power, jump rope conditioning, functional movement. High EPOC means calories burn for hours after. Builds the athletic body composition you're after.",
+    exercises:[
+      {name:"Jump Rope Warm-up",sets:1,reps:"3 min",notes:"Single unders, find rhythm, loosen up"},
+      {name:"Box Jumps",sets:4,reps:"8",notes:"Full hip extension at top, land soft"},
+      {name:"Broad Jumps",sets:4,reps:"6",notes:"Max horizontal distance, stick landing"},
+      {name:"Jump Rope HIIT",sets:8,reps:"40s on / 20s off",notes:"Double unders or fast singles, max effort"},
+      {name:"Lateral Bounds",sets:3,reps:"10/side",notes:"Single-leg landing, absorb force at knee"},
+      {name:"Jump Rope Tabata",sets:4,reps:"20s on / 10s off",notes:"All-out finisher"},
+    ]
+  }
+};
+
+const ALL_PLANS = {...STRENGTH_PLAN,...CARDIO_PLAN};
+
+const WEEKLY_SPLIT = [
+  {day:"Mon",workout:"Push",type:"strength"},
+  {day:"Tue",workout:"Pull",type:"strength"},
+  {day:"Wed",workout:"Cardio + Core",type:"cardio"},
+  {day:"Thu",workout:"Legs",type:"strength"},
+  {day:"Fri",workout:"Power + Athleticism",type:"cardio"},
+  {day:"Sat",workout:"Yoga / Recovery",type:"recovery"},
+  {day:"Sun",workout:"Rest",type:"rest"},
+];
+
+const NUTRITION_TARGETS = {calories:2250,protein:180,carbs:210,fat:60};
+const FOOD_LOG_START = "2026-06-09";
+const FOOD_LOG_DAYS = Array.from({length:7},(_,i)=>{
+  const d = new Date(FOOD_LOG_START+"T12:00:00");
+  d.setDate(d.getDate()+i);
+  return d.toISOString().split("T")[0];
+});
+
+const ACCENT="#E8FF47",CB="#47CFFF",PINK="#FF47B8",BG="#0A0A0A",CARD="#111",BORDER="#1E1E1E",MUTED="#555",TEXT="#F0F0F0",GREEN="#47FF8A";
+const tColor=(t)=>({strength:ACCENT,cardio:CB,recovery:GREEN,rest:MUTED}[t]||MUTED);
+const dayName=(ds)=>["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][new Date(ds+"T12:00:00").getDay()];
+
+function MacroBar({val,target,color}){
+  const pct=Math.min((val/target)*100,100);
+  return <div style={{height:4,background:"#1E1E1E",borderRadius:2,overflow:"hidden",marginTop:4}}><div style={{width:`${pct}%`,height:"100%",background:color,borderRadius:2,transition:"width .3s"}}/></div>;
+}
+
+function App(){
+  const [tab,setTab]=useState("plan");
+  const [logs,setLogs]=useState({});
+  const [activeWorkout,setActiveWorkout]=useState(null);
+  const [sessionSets,setSessionSets]=useState({});
+  const [bodyweight,setBodyweight]=useState([]);
+  const [bwInput,setBwInput]=useState("");
+  const [loaded,setLoaded]=useState(false);
+  const [toast,setToast]=useState(null);
+  const [expandedPlan,setExpandedPlan]=useState(null);
+  const [planView,setPlanView]=useState("all");
+  const [foodLogs,setFoodLogs]=useState({});
+  const [selDay,setSelDay]=useState(FOOD_LOG_DAYS[0]);
+  const [foodEntry,setFoodEntry]=useState({meal:"Breakfast",food:"",calories:"",protein:"",carbs:"",fat:""});
+
+  useEffect(()=>{
+    try{const r=localStorage.getItem(STORAGE_KEY);if(r){const d=JSON.parse(r);setLogs(d.logs||{});setBodyweight(d.bodyweight||[]);setFoodLogs(d.foodLogs||{});}}catch{}
+    setLoaded(true);
+  },[]);
+
+  useEffect(()=>{
+    if(!loaded)return;
+    localStorage.setItem(STORAGE_KEY,JSON.stringify({logs,bodyweight,foodLogs}));
+  },[logs,bodyweight,foodLogs,loaded]);
+
+  const toast2=(m)=>{setToast(m);setTimeout(()=>setToast(null),2500);};
+
+  const startWorkout=(name)=>{
+    const plan=ALL_PLANS[name];
+    const init={};
+    plan.exercises.forEach(ex=>{init[ex.name]=Array.from({length:ex.sets},()=>({weight:"",reps:"",done:false}));});
+    setSessionSets(init);setActiveWorkout(name);setTab("log");
+  };
+
+  const updSet=(ex,i,f,v)=>setSessionSets(p=>{const c={...p,[ex]:[...p[ex]]};c[ex][i]={...c[ex][i],[f]:v};return c;});
+  const togSet=(ex,i)=>setSessionSets(p=>{const c={...p,[ex]:[...p[ex]]};c[ex][i]={...c[ex][i],done:!c[ex][i].done};return c;});
+
+  const finishWorkout=()=>{
+    const dk=new Date().toISOString().split("T")[0];
+    const plan=ALL_PLANS[activeWorkout];
+    setLogs(p=>({...p,[dk]:{workout:activeWorkout,type:plan.type,sets:sessionSets}}));
+    setActiveWorkout(null);setSessionSets({});toast2("Session saved! 💪");setTab("progress");
+  };
+
+  const addFood=()=>{
+    if(!foodEntry.food||!foodEntry.calories)return;
+    const e={...foodEntry,id:Date.now(),calories:+foodEntry.calories,protein:+foodEntry.protein||0,carbs:+foodEntry.carbs||0,fat:+foodEntry.fat||0};
+    setFoodLogs(p=>({...p,[selDay]:[...(p[selDay]||[]),e]}));
+    setFoodEntry({meal:foodEntry.meal,food:"",calories:"",protein:"",carbs:"",fat:""});
+    toast2("Food logged!");
+  };
+
+  const removeFood=(day,id)=>setFoodLogs(p=>({...p,[day]:(p[day]||[]).filter(e=>e.id!==id)}));
+
+  const dayTotals=(day)=>(foodLogs[day]||[]).reduce((a,e)=>({calories:a.calories+e.calories,protein:a.protein+e.protein,carbs:a.carbs+e.carbs,fat:a.fat+e.fat}),{calories:0,protein:0,carbs:0,fat:0});
+
+  const total=Object.keys(logs).length;
+  const strS=Object.values(logs).filter(l=>l.type==="strength").length;
+  const carS=Object.values(logs).filter(l=>l.type==="cardio").length;
+  const wkS=Object.keys(logs).filter(d=>(new Date()-new Date(d))/86400000<=7).length;
+  const volData=Object.entries(logs).filter(([,e])=>e.type==="strength").slice(-8).map(([date,entry])=>{
+    let v=0;Object.values(entry.sets||{}).forEach(sets=>sets.forEach(s=>{if(s.done&&s.weight&&s.reps)v+=parseFloat(s.weight||0)*parseFloat(s.reps||0);}));
+    return{date:date.slice(5),volume:Math.round(v)};
+  });
+  const filtPlans=Object.entries(ALL_PLANS).filter(([,v])=>planView==="all"||v.type===planView);
+
+  const S={
+    page:{background:BG,minHeight:"100vh",color:TEXT,fontFamily:"'DM Mono','Courier New',monospace"},
+    hdr:{padding:"env(safe-area-inset-top, 24px) 18px 12px",borderBottom:"1px solid #1E1E1E",paddingTop:"max(env(safe-area-inset-top),24px)"},
+    content:{padding:"16px 18px 96px"},
+    nav:{position:"fixed",bottom:0,left:0,right:0,background:"#0D0D0D",borderTop:"1px solid #1E1E1E",display:"flex",justifyContent:"space-around",padding:"4px 0 max(env(safe-area-inset-bottom),8px)",zIndex:50},
+    card:{background:CARD,border:"1px solid #1E1E1E",borderRadius:8,padding:16},
+    input:{background:"#161616",border:"1px solid #1E1E1E",color:TEXT,fontFamily:"'DM Mono',monospace",fontSize:13,borderRadius:4,padding:"7px 10px",outline:"none",width:"100%"},
+  };
+
+  return (
+    <div style={S.page}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Bebas+Neue&display=swap');
+        input,select{background:#161616;border:1px solid #1E1E1E;color:#F0F0F0;font-family:'DM Mono',monospace;font-size:13px;border-radius:4px;padding:7px 10px;outline:none;width:100%;-webkit-appearance:none}
+        input:focus,select:focus{border-color:#E8FF47}
+        select option{background:#161616}
+        .btn{border:none;cursor:pointer;font-family:'DM Mono',monospace;font-weight:500;letter-spacing:.08em;text-transform:uppercase;border-radius:4px}
+        .done-btn{width:32px;height:32px;border-radius:50%;border:2px solid #1E1E1E;background:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;color:#000}
+        .set-row{display:grid;grid-template-columns:1fr 72px 72px 36px;gap:6px;align-items:center;margin-bottom:6px}
+        .filter-btn{background:none;border:1px solid #1E1E1E;color:#555;font-family:'DM Mono',monospace;font-size:9px;letter-spacing:.1em;text-transform:uppercase;padding:4px 10px;border-radius:100px;cursor:pointer}
+        .day-tab{background:none;border:1px solid #1E1E1E;color:#555;font-family:'DM Mono',monospace;font-size:9px;padding:5px 4px;border-radius:4px;cursor:pointer;text-align:center;width:100%}
+        .tab-btn{background:none;border:none;cursor:pointer;font-family:'DM Mono',monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;padding:8px 6px}
+        .rm-btn{background:none;border:none;color:#555;cursor:pointer;font-size:18px;padding:0 4px;line-height:1}
+        .toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:#E8FF47;color:#000;padding:10px 24px;border-radius:100px;font-size:12px;font-weight:500;z-index:200;white-space:nowrap;animation:fU .3s ease}
+        @keyframes fU{from{opacity:0;transform:translateX(-50%) translateY(10px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
+        .tag{display:inline-block;padding:2px 7px;border-radius:3px;font-size:9px;letter-spacing:.1em;margin-bottom:5px}
+      `}</style>
+
+      {/* HEADER */}
+      <div style={S.hdr}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-end"}}>
+          <div>
+            <div style={{fontFamily:"'Bebas Neue'",fontSize:34,letterSpacing:".05em",color:ACCENT,lineHeight:1}}>IRON LOG</div>
+            <div style={{fontSize:9,color:MUTED,letterSpacing:".14em",marginTop:2}}>5-DAY HYBRID ATHLETE</div>
+          </div>
+          <div style={{textAlign:"right"}}>
+            <div style={{fontSize:20,fontFamily:"'Bebas Neue'",color:TEXT}}>{total}</div>
+            <div style={{fontSize:8,color:MUTED,letterSpacing:".1em"}}>SESSIONS</div>
+          </div>
+        </div>
+        <div style={{display:"flex",gap:5,marginTop:14,overflowX:"auto",paddingBottom:2}}>
+          {WEEKLY_SPLIT.map(({day,workout,type})=>{
+            const col=tColor(type),isOff=type==="rest";
+            return(
+              <div key={day} style={{flex:"0 0 auto",textAlign:"center",minWidth:40}}>
+                <div style={{fontSize:8,color:MUTED,marginBottom:3,letterSpacing:".08em"}}>{day}</div>
+                <div style={{padding:"4px 5px",borderRadius:4,background:isOff?"transparent":"#181818",border:`1px solid ${isOff?"#1E1E1E":col+"44"}`,fontSize:8,color:isOff?MUTED:col,whiteSpace:"nowrap"}}>
+                  {isOff?"—":workout.split(" ")[0]}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <div style={S.content}>
+
+        {/* PLAN */}
+        {tab==="plan"&&(
+          <div>
+            <div style={{display:"flex",gap:7,marginBottom:18}}>
+              {[["all","All",TEXT],["strength","Strength",ACCENT],["cardio","Cardio",CB]].map(([v,label,col])=>(
+                <button key={v} className="filter-btn" onClick={()=>setPlanView(v)} style={planView===v?{borderColor:col,color:col}:{}}>{label}</button>
+              ))}
+            </div>
+            {filtPlans.map(([name,plan])=>{
+              const isC=plan.type==="cardio",col=plan.color||ACCENT,isExp=expandedPlan===name;
+              return(
+                <div key={name} style={{...S.card,borderColor:isExp?col:"#1E1E1E",marginBottom:10,cursor:"pointer"}} onClick={()=>setExpandedPlan(isExp?null:name)}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+                    <div style={{flex:1}}>
+                      {isC&&plan.tag&&<span className="tag" style={{background:col+"20",color:col}}>{plan.tag}</span>}
+                      <div style={{fontFamily:"'Bebas Neue'",fontSize:22,color:TEXT,lineHeight:1.1}}>{name}</div>
+                      <div style={{fontSize:10,color:MUTED,marginTop:2}}>{plan.day} · {isC?plan.duration:`${plan.exercises.length} exercises`}</div>
+                    </div>
+                    <button className="btn" style={{background:col,color:"#000",padding:"8px 16px",fontSize:11,marginLeft:10,flexShrink:0}}
+                      onClick={e=>{e.stopPropagation();startWorkout(name);}}>Start</button>
+                  </div>
+                  {isExp&&isC&&plan.goal&&(
+                    <div style={{marginTop:12,padding:"10px 12px",background:col+"12",border:`1px solid ${col}30`,borderRadius:6,fontSize:11,color:col+"CC",lineHeight:1.6}}>{plan.goal}</div>
+                  )}
+                  {isExp?(
+                    <div style={{marginTop:12,display:"flex",flexDirection:"column",gap:5}}>
+                      {plan.exercises.map(ex=>(
+                        <div key={ex.name} style={{display:"flex",justifyContent:"space-between",padding:"8px 10px",background:"#161616",borderRadius:4}}>
+                          <div><div style={{fontSize:11}}>{ex.name}</div><div style={{fontSize:9,color:MUTED,marginTop:2}}>{ex.notes}</div></div>
+                          <div style={{fontSize:10,color:col,whiteSpace:"nowrap",marginLeft:10}}>{ex.sets>1?`${ex.sets}x`:""}{ex.reps}</div>
+                        </div>
+                      ))}
+                    </div>
+                  ):(
+                    <div style={{marginTop:10,display:"flex",flexWrap:"wrap",gap:5}}>
+                      {plan.exercises.slice(0,4).map(ex=><span key={ex.name} style={{fontSize:9,color:MUTED,background:"#161616",padding:"3px 7px",borderRadius:3}}>{ex.name}</span>)}
+                      {plan.exercises.length>4&&<span style={{fontSize:9,color:MUTED}}>+{plan.exercises.length-4} more</span>}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* LOG */}
+        {tab==="log"&&(
+          <div>
+            {!activeWorkout?(
+              <div style={{textAlign:"center",paddingTop:60}}>
+                <div style={{fontSize:14,color:MUTED}}>No active session.</div>
+                <div style={{fontSize:11,color:MUTED,marginTop:8}}>Go to Plan to start one.</div>
+              </div>
+            ):()=>{
+              const plan=ALL_PLANS[activeWorkout],isC=plan.type==="cardio",col=plan.color||ACCENT;
+              return(
+                <div>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+                    <div>
+                      <div style={{fontFamily:"'Bebas Neue'",fontSize:26,color:col}}>{activeWorkout}</div>
+                      <div style={{fontSize:9,color:MUTED,letterSpacing:".1em"}}>IN PROGRESS</div>
+                    </div>
+                    <div style={{width:8,height:8,borderRadius:"50%",background:col}}/>
+                  </div>
+                  {isC&&plan.goal&&<div style={{marginBottom:14,padding:"10px 12px",background:col+"12",border:`1px solid ${col}30`,borderRadius:6,fontSize:10,color:col+"CC",lineHeight:1.6}}>🎯 {plan.goal}</div>}
+                  {plan.exercises.map(ex=>(
+                    <div key={ex.name} style={{...S.card,marginBottom:12}}>
+                      <div style={{fontSize:13,fontWeight:500,marginBottom:2}}>{ex.name}</div>
+                      <div style={{fontSize:10,color:MUTED,marginBottom:12}}>{ex.sets>1?`${ex.sets} sets · `:""}{ex.reps} · {ex.notes}</div>
+                      {isC?(
+                        <div style={{display:"flex",alignItems:"center",gap:10}}>
+                          <button className="done-btn" style={{borderColor:col,flexShrink:0,...(sessionSets[ex.name]?.[0]?.done?{background:col,borderColor:col}:{})}} onClick={()=>togSet(ex.name,0)}>
+                            {sessionSets[ex.name]?.[0]?.done?"✓":""}
+                          </button>
+                          <input type="text" placeholder="Time / distance / notes" value={sessionSets[ex.name]?.[0]?.reps||""} onChange={e=>updSet(ex.name,0,"reps",e.target.value)}/>
+                        </div>
+                      ):(
+                        <>
+                          <div className="set-row" style={{marginBottom:6}}>
+                            <div style={{fontSize:9,color:MUTED}}>SET</div>
+                            <div style={{fontSize:9,color:MUTED}}>LBS</div>
+                            <div style={{fontSize:9,color:MUTED}}>REPS</div>
+                            <div/>
+                          </div>
+                          {(sessionSets[ex.name]||[]).map((set,i)=>(
+                            <div key={i} className="set-row">
+                              <div style={{fontSize:11,color:MUTED}}>Set {i+1}</div>
+                              <input type="number" placeholder="—" value={set.weight} onChange={e=>updSet(ex.name,i,"weight",e.target.value)}/>
+                              <input type="number" placeholder="—" value={set.reps} onChange={e=>updSet(ex.name,i,"reps",e.target.value)}/>
+                              <button className="done-btn" style={set.done?{background:ACCENT,borderColor:ACCENT}:{}} onClick={()=>togSet(ex.name,i)}>{set.done?"✓":""}</button>
+                            </div>
+                          ))}
+                        </>
+                      )}
+                    </div>
+                  ))}
+                  <button className="btn" style={{background:col,color:"#000",width:"100%",padding:14,fontSize:13,letterSpacing:".12em",borderRadius:6,marginTop:20}} onClick={finishWorkout}>✓ Finish & Save Session</button>
+                </div>
+              );
+            }()}
+          </div>
+        )}
+
+        {/* NUTRITION */}
+        {tab==="nutrition"&&(
+          <div>
+            <div style={{fontSize:10,color:MUTED,letterSpacing:".15em",marginBottom:6}}>— WEEK OF JUNE 9</div>
+            <div style={{fontSize:11,color:CB,marginBottom:16,lineHeight:1.5}}>Log everything you eat this week. Share it with me after 7 days and I'll analyze how your diet is affecting your body comp goals.</div>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:4,marginBottom:16}}>
+              {FOOD_LOG_DAYS.map(d=>{
+                const t=dayTotals(d),isSel=selDay===d,hasD=(foodLogs[d]||[]).length>0;
+                return(
+                  <button key={d} className="day-tab" onClick={()=>setSelDay(d)}
+                    style={isSel?{borderColor:ACCENT,color:ACCENT}:hasD?{borderColor:GREEN+"66",color:GREEN}:{}}>
+                    <div>{dayName(d)}</div>
+                    <div style={{fontSize:8,marginTop:1}}>{hasD?t.calories:"—"}</div>
+                  </button>
+                );
+              })}
+            </div>
+            {(()=>{
+              const t=dayTotals(selDay);
+              return(
+                <div style={{...S.card,marginBottom:14}}>
+                  <div style={{fontSize:10,color:MUTED,letterSpacing:".12em",marginBottom:12}}>{dayName(selDay)} TOTALS</div>
+                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:10}}>
+                    {[[t.calories,NUTRITION_TARGETS.calories,"KCAL",TEXT],[t.protein,NUTRITION_TARGETS.protein,"PRO",ACCENT],[t.carbs,NUTRITION_TARGETS.carbs,"CARB",CB],[t.fat,NUTRITION_TARGETS.fat,"FAT",PINK]].map(([val,target,label,col])=>(
+                      <div key={label}>
+                        <div style={{fontSize:16,fontFamily:"'Bebas Neue'",color:val>=target?GREEN:col}}>{val}</div>
+                        <div style={{fontSize:8,color:MUTED}}>{label}/{target}</div>
+                        <MacroBar val={val} target={target} color={col}/>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
+            <div style={{...S.card,marginBottom:14}}>
+              <div style={{fontSize:10,color:MUTED,letterSpacing:".12em",marginBottom:12}}>ADD FOOD</div>
+              <div style={{marginBottom:8}}>
+                <select value={foodEntry.meal} onChange={e=>setFoodEntry({...foodEntry,meal:e.target.value})}>
+                  {["Breakfast","Lunch","Dinner","Snack","Pre-workout","Post-workout"].map(m=><option key={m}>{m}</option>)}
+                </select>
+              </div>
+              <div style={{marginBottom:8}}>
+                <input placeholder="Food / meal description" value={foodEntry.food} onChange={e=>setFoodEntry({...foodEntry,food:e.target.value})}/>
+              </div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:6,marginBottom:12}}>
+                {[["calories","Kcal",TEXT],["protein","Pro g",ACCENT],["carbs","Carb g",CB],["fat","Fat g",PINK]].map(([field,label,col])=>(
+                  <div key={field}>
+                    <div style={{fontSize:8,color:col,marginBottom:3,letterSpacing:".08em"}}>{label}</div>
+                    <input type="number" placeholder="0" value={foodEntry[field]} onChange={e=>setFoodEntry({...foodEntry,[field]:e.target.value})}/>
+                  </div>
+                ))}
+              </div>
+              <button className="btn" style={{background:ACCENT,color:"#000",width:"100%",padding:10,fontSize:11}} onClick={addFood}>+ Log Food</button>
+            </div>
+            {(foodLogs[selDay]||[]).length>0&&(
+              <div>
+                <div style={{fontSize:10,color:MUTED,letterSpacing:".12em",marginBottom:10}}>LOGGED TODAY</div>
+                {["Breakfast","Lunch","Dinner","Pre-workout","Post-workout","Snack"].map(meal=>{
+                  const entries=(foodLogs[selDay]||[]).filter(e=>e.meal===meal);
+                  if(!entries.length)return null;
+                  return(
+                    <div key={meal} style={{marginBottom:12}}>
+                      <div style={{fontSize:9,color:MUTED,letterSpacing:".1em",marginBottom:6}}>{meal.toUpperCase()}</div>
+                      {entries.map(e=>(
+                        <div key={e.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"9px 10px",background:"#161616",borderRadius:5,marginBottom:4}}>
+                          <div style={{flex:1}}>
+                            <div style={{fontSize:11}}>{e.food}</div>
+                            <div style={{fontSize:9,color:MUTED,marginTop:2}}>{e.calories}kcal · {e.protein}g P · {e.carbs}g C · {e.fat}g F</div>
+                          </div>
+                          <button className="rm-btn" onClick={()=>removeFood(selDay,e.id)}>×</button>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* PROGRESS */}
+        {tab==="progress"&&(
+          <div>
+            <div style={{fontSize:10,color:MUTED,letterSpacing:".15em",marginBottom:16}}>— OVERVIEW</div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:18}}>
+              {[[wkS,"THIS WEEK",TEXT],[strS,"STRENGTH",ACCENT],[carS,"CARDIO",CB]].map(([val,label,col])=>(
+                <div key={label} style={{...S.card,padding:14}}>
+                  <div style={{fontSize:24,fontFamily:"'Bebas Neue'",color:col}}>{val}</div>
+                  <div style={{fontSize:8,color:MUTED,letterSpacing:".1em"}}>{label}</div>
+                </div>
+              ))}
+            </div>
+            <div style={{background:"#0A100A",border:"1px solid #47FF8A33",borderRadius:8,padding:16,marginBottom:18}}>
+              <div style={{fontSize:9,color:GREEN,letterSpacing:".14em",marginBottom:10}}>BODY COMPOSITION GOAL</div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+                {[["175 lb","Current weight",TEXT],["158-162 lb","Target weight",GREEN],["~18-20%","Est. body fat",TEXT],["10-12%","Target body fat",GREEN]].map(([val,label,col])=>(
+                  <div key={label}><div style={{fontSize:18,fontFamily:"'Bebas Neue'",color:col}}>{val}</div><div style={{fontSize:9,color:MUTED}}>{label}</div></div>
+                ))}
+              </div>
+              <div style={{marginTop:12,padding:"8px 10px",background:"#0F1A0F",borderRadius:5,fontSize:10,color:GREEN+"AA",lineHeight:1.5}}>Timeline: 3-4 months at 500 kcal deficit + consistent training</div>
+            </div>
+            <div style={{...S.card,marginBottom:18}}>
+              <div style={{fontSize:10,color:MUTED,letterSpacing:".12em",marginBottom:12}}>DAILY TARGETS</div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+                {[["2,250","Calories",TEXT],["180g","Protein",ACCENT],["210g","Carbs",CB],["60g","Fat",PINK]].map(([val,label,col])=>(
+                  <div key={label} style={{padding:"10px 12px",background:"#161616",borderRadius:5}}>
+                    <div style={{fontSize:20,fontFamily:"'Bebas Neue'",color:col}}>{val}</div>
+                    <div style={{fontSize:9,color:MUTED}}>{label}/day</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            {volData.length>0&&(
+              <div style={{...S.card,marginBottom:18}}>
+                <div style={{fontSize:10,color:MUTED,letterSpacing:".12em",marginBottom:12}}>LIFT VOLUME (LBS)</div>
+                <ResponsiveContainer width="100%" height={100}>
+                  <BarChart data={volData}>
+                    <XAxis dataKey="date" tick={{fontSize:9,fill:MUTED}} axisLine={false} tickLine={false}/>
+                    <YAxis hide/><Tooltip contentStyle={{background:"#1A1A1A",border:"none",fontSize:11,color:TEXT}}/>
+                    <Bar dataKey="volume" fill={ACCENT} radius={[3,3,0,0]}/>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+            <div style={{...S.card,marginBottom:18}}>
+              <div style={{fontSize:10,color:MUTED,letterSpacing:".12em",marginBottom:12}}>BODYWEIGHT (LBS)</div>
+              <div style={{display:"flex",gap:8,marginBottom:12}}>
+                <input type="number" placeholder="Today's weight" value={bwInput} onChange={e=>setBwInput(e.target.value)}/>
+                <button className="btn" style={{background:ACCENT,color:"#000",padding:"8px 14px",fontSize:11,whiteSpace:"nowrap",flexShrink:0}} onClick={()=>{
+                  if(!bwInput)return;
+                  const entry={date:new Date().toISOString().split("T")[0],weight:parseFloat(bwInput)};
+                  setBodyweight(p=>[...p.filter(e=>e.date!==entry.date),entry].sort((a,b)=>a.date.localeCompare(b.date)));
+                  setBwInput("");toast2("Weight logged!");
+                }}>Log</button>
+              </div>
+              {bodyweight.length>1?(
+                <ResponsiveContainer width="100%" height={90}>
+                  <LineChart data={bodyweight}>
+                    <XAxis dataKey="date" tick={{fontSize:9,fill:MUTED}} axisLine={false} tickLine={false} tickFormatter={d=>d.slice(5)}/>
+                    <YAxis domain={["auto","auto"]} hide/>
+                    <Tooltip contentStyle={{background:"#1A1A1A",border:"none",fontSize:11,color:TEXT}}/>
+                    <Line type="monotone" dataKey="weight" stroke={ACCENT} strokeWidth={2} dot={{r:3,fill:ACCENT}}/>
+                  </LineChart>
+                </ResponsiveContainer>
+              ):<div style={{fontSize:11,color:MUTED}}>Log daily to track trends.</div>}
+            </div>
+            <div style={{fontSize:10,color:MUTED,letterSpacing:".12em",marginBottom:10}}>RECENT SESSIONS</div>
+            {Object.entries(logs).sort((a,b)=>b[0].localeCompare(a[0])).slice(0,8).map(([date,entry])=>{
+              const col=entry.type==="cardio"?CB:ACCENT;
+              return(
+                <div key={date} style={{display:"flex",justifyContent:"space-between",padding:"10px 0",borderBottom:"1px solid #1E1E1E"}}>
+                  <div>
+                    <div style={{display:"flex",alignItems:"center",gap:8}}>
+                      <span style={{width:6,height:6,borderRadius:"50%",background:col,display:"inline-block"}}/>
+                      <span style={{fontSize:12}}>{entry.workout}</span>
+                    </div>
+                    <div style={{fontSize:10,color:MUTED,marginTop:2,paddingLeft:14}}>
+                      {Object.values(entry.sets||{}).reduce((a,sets)=>a+sets.filter(s=>s.done).length,0)} sets · {date}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+            {total===0&&<div style={{fontSize:11,color:MUTED}}>No sessions yet.</div>}
+          </div>
+        )}
+      </div>
+
+      {/* NAV */}
+      <div style={S.nav}>
+        {[["plan","📋","Plan"],["log","⚡","Log"],["nutrition","🥗","Food"],["progress","📈","Progress"]].map(([id,icon,label])=>(
+          <button key={id} className="tab-btn" onClick={()=>setTab(id)} style={{color:tab===id?ACCENT:MUTED}}>
+            <div style={{fontSize:17}}>{icon}</div>
+            <div style={{marginTop:1,fontSize:8}}>{label}</div>
+          </button>
+        ))}
+      </div>
+
+      {toast&&<div className="toast">{toast}</div>}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>
