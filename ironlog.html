@@ -1,0 +1,787 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="Iron Log"/>
+<meta name="theme-color" content="#0A0A0A"/>
+<title>Iron Log</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Bebas+Neue&display=swap');
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{--a:#E8FF47;--b:#47CFFF;--p:#FF47B8;--g:#47FF8A;--bg:#0A0A0A;--card:#111;--border:#1E1E1E;--muted:#555;--text:#F0F0F0}
+html,body{background:var(--bg);color:var(--text);font-family:'DM Mono','Courier New',monospace;min-height:100vh;overscroll-behavior:none}
+::-webkit-scrollbar{width:3px}::-webkit-scrollbar-thumb{background:#333;border-radius:2px}
+#app{padding-bottom:80px}
+/* HEADER */
+#header{padding:max(env(safe-area-inset-top),24px) 18px 12px;border-bottom:1px solid var(--border);background:var(--bg);position:sticky;top:0;z-index:40}
+.logo{font-family:'Bebas Neue',sans-serif;font-size:34px;letter-spacing:.05em;color:var(--a);line-height:1}
+.logo-sub{font-size:9px;color:var(--muted);letter-spacing:.14em;margin-top:2px}
+.week-strip{display:flex;gap:5px;margin-top:14px;overflow-x:auto;padding-bottom:2px}
+.week-day{flex:0 0 auto;text-align:center;min-width:40px}
+.week-label{font-size:8px;color:var(--muted);margin-bottom:3px;letter-spacing:.08em}
+.week-pill{padding:4px 5px;border-radius:4px;font-size:8px;white-space:nowrap;border:1px solid transparent}
+/* NAV */
+#nav{position:fixed;bottom:0;left:0;right:0;background:#0D0D0D;border-top:1px solid var(--border);display:flex;justify-content:space-around;padding:4px 0 max(env(safe-area-inset-bottom),8px);z-index:50}
+.nav-btn{background:none;border:none;cursor:pointer;font-family:'DM Mono',monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;padding:8px 6px;color:var(--muted);display:flex;flex-direction:column;align-items:center;gap:2px}
+.nav-btn.active{color:var(--a)}
+.nav-icon{font-size:17px}
+.nav-label{font-size:8px}
+/* CONTENT */
+.tab{display:none;padding:16px 18px}
+.tab.active{display:block}
+/* CARDS */
+.card{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:12px}
+/* BUTTONS */
+.btn{border:none;cursor:pointer;font-family:'DM Mono',monospace;font-weight:500;letter-spacing:.08em;text-transform:uppercase;border-radius:4px;padding:9px 18px;font-size:11px}
+.btn-full{width:100%;padding:14px;font-size:13px;letter-spacing:.12em;border-radius:6px;margin-top:20px;border:none;cursor:pointer;font-family:'DM Mono',monospace;font-weight:500;text-transform:uppercase}
+.btn-accent{background:var(--a);color:#000}
+.btn-cardio{background:var(--b);color:#000}
+.btn-pink{background:var(--p);color:#000}
+/* FILTER */
+.filter-row{display:flex;gap:7px;margin-bottom:18px}
+.filter-btn{background:none;border:1px solid var(--border);color:var(--muted);font-family:'DM Mono',monospace;font-size:9px;letter-spacing:.1em;text-transform:uppercase;padding:4px 10px;border-radius:100px;cursor:pointer}
+.filter-btn.active-all{border-color:var(--text);color:var(--text)}
+.filter-btn.active-strength{border-color:var(--a);color:var(--a)}
+.filter-btn.active-cardio{border-color:var(--b);color:var(--b)}
+/* PLAN CARDS */
+.plan-card{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:10px;cursor:pointer}
+.plan-title{font-family:'Bebas Neue',sans-serif;font-size:22px;line-height:1.1}
+.plan-meta{font-size:10px;color:var(--muted);margin-top:2px}
+.plan-header{display:flex;justify-content:space-between;align-items:flex-start}
+.plan-chips{margin-top:10px;display:flex;flex-wrap:wrap;gap:5px}
+.chip{font-size:9px;color:var(--muted);background:#161616;padding:3px 7px;border-radius:3px}
+.tag{display:inline-block;padding:2px 7px;border-radius:3px;font-size:9px;letter-spacing:.1em;margin-bottom:5px}
+.goal-box{border-radius:6px;padding:10px 12px;font-size:11px;line-height:1.6;margin-top:12px}
+.ex-list{margin-top:12px;display:flex;flex-direction:column;gap:5px}
+.ex-row{display:flex;justify-content:space-between;padding:8px 10px;background:#161616;border-radius:4px}
+.ex-name{font-size:11px}
+.ex-note{font-size:9px;color:var(--muted);margin-top:2px}
+.ex-reps{font-size:10px;white-space:nowrap;margin-left:10px}
+/* LOG */
+.set-grid{display:grid;grid-template-columns:1fr 72px 72px 36px;gap:6px;align-items:center;margin-bottom:6px}
+.set-label{font-size:9px;color:var(--muted)}
+.done-btn{width:32px;height:32px;border-radius:50%;border:2px solid var(--border);background:none;cursor:pointer;font-size:13px;color:transparent;flex-shrink:0}
+.done-btn.done{color:#000}
+/* INPUTS */
+input,select{background:#161616;border:1px solid var(--border);color:var(--text);font-family:'DM Mono',monospace;font-size:13px;border-radius:4px;padding:7px 10px;outline:none;width:100%;-webkit-appearance:none}
+input:focus,select:focus{border-color:var(--a)}
+select option{background:#161616}
+/* NUTRITION */
+.day-tabs{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:16px}
+.day-tab{background:none;border:1px solid var(--border);color:var(--muted);font-family:'DM Mono',monospace;font-size:9px;padding:5px 2px;border-radius:4px;cursor:pointer;text-align:center;width:100%}
+.day-tab.active{border-color:var(--a);color:var(--a)}
+.day-tab.has-data{border-color:#47FF8A66;color:var(--g)}
+.macro-grid{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px}
+.macro-val{font-size:16px;font-family:'Bebas Neue',sans-serif}
+.macro-lbl{font-size:8px;color:var(--muted)}
+.macro-bar{height:4px;background:var(--border);border-radius:2px;overflow:hidden;margin-top:4px}
+.macro-fill{height:100%;border-radius:2px;transition:width .3s}
+.food-entry{display:flex;justify-content:space-between;align-items:center;padding:9px 10px;background:#161616;border-radius:5px;margin-bottom:4px}
+.rm-btn{background:none;border:none;color:var(--muted);cursor:pointer;font-size:20px;padding:0 4px;line-height:1}
+.rm-btn:hover{color:#ff4747}
+.form-grid{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px;margin-bottom:12px}
+.form-label{font-size:8px;letter-spacing:.08em;margin-bottom:3px}
+/* PROGRESS */
+.stats-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:18px}
+.stat-card{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:14px}
+.stat-val{font-size:24px;font-family:'Bebas Neue',sans-serif}
+.stat-lbl{font-size:8px;color:var(--muted);letter-spacing:.1em}
+.goal-card{background:#0A100A;border:1px solid #47FF8A33;border-radius:8px;padding:16px;margin-bottom:18px}
+.goal-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.goal-val{font-size:18px;font-family:'Bebas Neue',sans-serif}
+.goal-lbl{font-size:9px;color:var(--muted)}
+.targets-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.target-box{padding:10px 12px;background:#161616;border-radius:5px}
+.target-val{font-size:20px;font-family:'Bebas Neue',sans-serif}
+.target-lbl{font-size:9px;color:var(--muted)}
+/* CHART */
+.bar-chart{display:flex;align-items:flex-end;gap:4px;height:80px;margin-top:8px}
+.bar-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px}
+.bar-inner{width:100%;background:var(--a);border-radius:3px 3px 0 0;min-height:2px;transition:height .3s}
+.bar-date{font-size:8px;color:var(--muted)}
+.line-chart{position:relative;height:80px;margin-top:8px}
+/* HISTORY */
+.session-row{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)}
+.session-dot{width:6px;height:6px;border-radius:50%;display:inline-block;margin-right:8px}
+.session-name{font-size:12px}
+.session-meta{font-size:10px;color:var(--muted);margin-top:2px;padding-left:14px}
+/* TOAST */
+#toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:var(--a);color:#000;padding:10px 24px;border-radius:100px;font-size:12px;font-weight:500;z-index:200;white-space:nowrap;display:none;animation:fU .3s ease}
+@keyframes fU{from{opacity:0;transform:translateX(-50%) translateY(10px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
+.section-label{font-size:10px;color:var(--muted);letter-spacing:.15em;margin-bottom:16px}
+.info-box{border-radius:6px;padding:10px 12px;font-size:11px;line-height:1.6;margin-bottom:14px}
+.bw-row{display:flex;gap:8px;margin-bottom:12px}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="header">
+    <div style="display:flex;justify-content:space-between;align-items:flex-end">
+      <div><div class="logo">IRON LOG</div><div class="logo-sub">UPPER / LOWER / POWER</div></div>
+      <div style="text-align:right"><div class="stat-val" id="total-sessions" style="font-size:20px">0</div><div style="font-size:8px;color:var(--muted);letter-spacing:.1em">SESSIONS</div></div>
+    </div>
+    <div class="week-strip" id="week-strip"></div>
+  </div>
+
+  <div id="tab-plan" class="tab active"></div>
+  <div id="tab-log" class="tab"></div>
+  <div id="tab-nutrition" class="tab"></div>
+  <div id="tab-progress" class="tab"></div>
+</div>
+
+<div id="nav">
+  <button class="nav-btn active" data-tab="plan"><span class="nav-icon">📋</span><span class="nav-label">Plan</span></button>
+  <button class="nav-btn" data-tab="log"><span class="nav-icon">⚡</span><span class="nav-label">Log</span></button>
+  <button class="nav-btn" data-tab="nutrition"><span class="nav-icon">🥗</span><span class="nav-label">Food</span></button>
+  <button class="nav-btn" data-tab="progress"><span class="nav-icon">📈</span><span class="nav-label">Progress</span></button>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const WARMUPS = {
+  "Upper A":{color:"#E8FF47",duration:"10-MIN",steps:[
+    {name:"Bike or Row Easy",duration:"3 min",notes:"Just blood flow. Nasal breathing only, you should never feel out of breath."},
+    {name:"Band Pull-Aparts",duration:"2x20",notes:"Sets the scapula and wakes up rear delts before any pressing."},
+    {name:"Scap Push-ups",duration:"2x10",notes:"Arms locked, only the shoulder blades move. Protract and retract. Serratus activation."},
+    {name:"Wall Slides",duration:"2x10",notes:"Low back flat against wall, arms slide overhead keeping wrists in contact. Thoracic and shoulder prep."},
+    {name:"Shoulder CARs",duration:"5/side",notes:"Slow full controlled circles with the arm. Joint prep, not a stretch."},
+    {name:"Bench Ramp Sets",duration:"bar x10, 50% x5, 70% x3",notes:"Check grip width against the knurling. Groove the bar path before it gets heavy."},
+  ]},
+  "Lower A":{color:"#E8FF47",duration:"12-MIN",steps:[
+    {name:"Bike Easy",duration:"3 min",notes:"Get the hips moving before you load them."},
+    {name:"Hip 90/90 Switches",duration:"10/side",notes:"Sit on floor, both legs at 90 degrees, rotate side to side. Opens internal and external rotation."},
+    {name:"Cossack Squat",duration:"8/side",notes:"Shift side to side in a wide stance. Adductors and ankle mobility, both squat limiters."},
+    {name:"Glute Bridges",duration:"2x15",notes:"2s squeeze at the top. Wakes the glutes so the low back does not take over under the bar."},
+    {name:"Bodyweight Squat",duration:"15 reps",notes:"Full depth, slow. Tells your nervous system where you are about to go."},
+    {name:"Squat Ramp Sets",duration:"bar x10, 40% x8, 60% x5, 80% x3",notes:"Brace on every rep including the empty bar. The warmup is where the brace gets built."},
+  ]},
+  "Power + Athleticism":{color:"#FF47B8",duration:"15-MIN",steps:[
+    {name:"Jog or Bike Easy",duration:"3 min",notes:"Blood flow only. This is not the workout yet."},
+    {name:"Leg Swings",duration:"10/side each way",notes:"Front to back then lateral, holding a wall. Opens hips for jumping and bounding."},
+    {name:"A-Skips",duration:"2x20 yards",notes:"Tall posture, quick ground contact. Rehearses the elastic quality you want in the main work."},
+    {name:"Pogo Hops",duration:"2x15",notes:"Small fast hops on the balls of your feet, minimal knee bend. Wakes the stretch reflex in calves and Achilles."},
+    {name:"Submax Box Jumps",duration:"2x3 low box",notes:"Same pattern at half effort. CNS rehearsal before anything maximal."},
+    {name:"Build-up Strides",duration:"3x40m @ 70/80/90%",notes:"Mandatory before sprinting. Accelerate gradually to the target effort, hold briefly, decelerate. Cold hamstrings and sprints are how hamstrings tear."},
+  ]},
+  "Upper B":{color:"#E8FF47",duration:"10-MIN",steps:[
+    {name:"Bike or Row Easy",duration:"3 min",notes:"Blood flow. Nasal breathing only."},
+    {name:"Band Pull-Aparts",duration:"2x20",notes:"Rear delt and scapular activation before overhead work."},
+    {name:"Wall Slides with Overhead Reach",duration:"2x10",notes:"Critical before pressing overhead. If your wrists leave the wall, that is your mobility limit showing up."},
+    {name:"Thoracic Extension over Foam Roller",duration:"10 reps",notes:"Roller across mid-back, extend over it. Overhead press needs t-spine extension or the low back will donate it."},
+    {name:"Dead Hang",duration:"30s",notes:"Decompresses the spine and preps grip and lats for pulling."},
+    {name:"OHP Ramp Sets",duration:"bar x10, 50% x5, 70% x3",notes:"Practice pushing the head through at lockout while it is light."},
+  ]},
+  "Lower B":{color:"#E8FF47",duration:"12-MIN",steps:[
+    {name:"Bike Easy",duration:"3 min",notes:"Hips and hamstrings need blood before you pull heavy."},
+    {name:"Hip 90/90 Switches",duration:"10/side",notes:"Hip rotation prep. Carries straight into split squat quality."},
+    {name:"Cat-Cow",duration:"10 reps",notes:"Slow, segment by segment. Warms the whole spine before deadlifting."},
+    {name:"Glute Bridges",duration:"2x15",notes:"2s squeeze. Glutes online means the low back is not the prime mover on the pull."},
+    {name:"Hip Hinge with Dowel",duration:"10 reps",notes:"Dowel on head, mid-back, tailbone. Hinge without losing contact. This is the deadlift pattern."},
+    {name:"Deadlift Ramp Sets",duration:"40% x5, 60% x3, 80% x2",notes:"Reset the setup every single rep, even warmups. Pull the slack out before you move."},
+  ]},
+  "VO2max Intervals":{color:"#47FF8A",duration:"8-MIN",steps:[
+    {name:"Easy Spin or Row",duration:"4 min",notes:"Build gradually from very easy to moderate. Do not start the first interval cold, you will waste it."},
+    {name:"Leg Swings",duration:"10/side",notes:"Front to back and lateral. Quick hip prep."},
+    {name:"Progressive Efforts",duration:"3x30s",notes:"30s at roughly 70%, then 80%, then 90%, with 60s easy between. Opens up breathing and gets HR responsive before interval 1."},
+  ]},
+  "Jump Rope Conditioning":{color:"#47CFFF",duration:"6-MIN",steps:[
+    {name:"Easy Single Unders",duration:"2 min",notes:"Relaxed pace, wrists doing the work not the arms. Just blood flow."},
+    {name:"Ankle Circles + Calf Raises",duration:"10 + 15 reps",notes:"Full range calf raises. Your ankles absorb every rep today, prep them properly."},
+    {name:"Pogo Hops",duration:"2x15",notes:"Small quick hops on the balls of the feet, minimal knee bend. Primes the stretch reflex you will rely on."},
+    {name:"Fast Singles Build",duration:"3x20s",notes:"Progressively faster, 40s easy between. Finds your rhythm before the clock starts."},
+  ]},
+  "Zone 2":{color:"#47CFFF",duration:"5-MIN",steps:[
+    {name:"Brisk Walk",duration:"2 min",notes:"Do not skip this even if you feel warm already."},
+    {name:"Leg Swings",duration:"10/side",notes:"Front to back then lateral. Opens the hips for running gait."},
+    {name:"Glute Bridges",duration:"15 reps",notes:"Wakes the glutes so they actually fire during the run instead of the hip flexors doing everything."},
+    {name:"Easy Jog",duration:"2 min",notes:"Very easy. By the end of this, Zone 2 pace should feel like a natural step up."},
+  ]},
+};
+
+const PLANS = {
+  "Upper A":{type:"strength",color:"#E8FF47",day:"Mon",tag:"HORIZONTAL + CORE",duration:"~82 min",
+    goal:"Horizontal push and pull emphasis, then anti-extension and anti-rotation core. Core sits here rather than on lower days because your trunk is already taxed after squats and deadlifts. Fresh trunk means better quality core work.",
+    exercises:[
+    {name:"Bench Press",sets:4,reps:"5-8",rest:"2:30",notes:"Shoulder blades pinned back and down before you unrack. Feet flat, slight arch, ribs down. Shallow J bar path: touch at the base of the sternum, press back over the shoulder. Elbows 45 to 60 degrees from the torso, not flared to 90. Touch the chest, no bounce."},
+    {name:"Chest-Supported Row",sets:4,reps:"8-10",rest:"2:00",notes:"Chest stays glued to the pad the entire set. Pull to the lower ribs, not the collarbone. Lead with the elbow, squeeze for a beat at the top, 2s lowering. If your chest is peeling off the pad, the weight is too heavy."},
+    {name:"Incline DB Press",sets:3,reps:"10-12",rest:"1:30",notes:"Bench at 30 degrees, not 45. Higher and it becomes a shoulder press. Dumbbells stay slightly inside shoulder width at the top, no clanking. Lower until you feel a stretch across the chest, roughly level with the shoulder."},
+    {name:"Lat Pulldown or Pull-up",sets:3,reps:"8-10",rest:"1:30",notes:"Pulldown: sit tall, lean back about 10 degrees, drive the elbow down toward your hip pocket rather than pulling with the hand. Pull-up: dead hang start, shoulders active not shrugged, chin over bar, 2s controlled lower."},
+    {name:"Lateral Raise",sets:3,reps:"12-15",rest:"superset",notes:"SUPERSET with Face Pull, rest 60s after the pair. Slight forward lean, thumbs level or a touch down, raise to shoulder height and no higher. Lead with the elbow, not the hand. Slow lowering."},
+    {name:"Face Pull",sets:3,reps:"15",rest:"60s",notes:"Rope at eye height. Pull toward your forehead, hands finishing wide beside your ears. External rotation at the end, not just a row. Shoulder health work, never skip it."},
+    {name:"Ab Wheel Rollout",sets:3,reps:"8-12",rest:"60s",notes:"CORE BLOCK A. Ribs pulled down, glutes squeezed, low back flat. Roll out only as far as you can hold that position. The moment the back arches you have gone too far. Start from knees."},
+    {name:"Pallof Press",sets:3,reps:"10/side",rest:"45s",notes:"Cable or band at chest height, stand side-on, step out to load the tension. Hands at your sternum, press straight out, pause, return. The torso does not rotate at all. Nothing moves but your arms. Go lighter than you think."},
+    {name:"Suitcase Carry",sets:3,reps:"40 yd/side",rest:"60s",notes:"Weight in one hand, walk tall. Do not lean away from the load. Shoulders level, ribs stacked over hips, slow controlled steps. This is the carry that shows up in real-world strength."},
+  ]},
+  "Lower A":{type:"strength",color:"#E8FF47",day:"Tue",tag:"SQUAT EMPHASIS",duration:"~52 min",
+    goal:"Fewer exercises, much longer rest. That is the right trade on heavy squats. Spare time goes to an extra back-off set or hip mobility, not cardio. No Zone 2 on this day.",
+    exercises:[
+    {name:"Back Squat",sets:4,reps:"5-8",rest:"3:00",notes:"Bar on the rear delts, not the neck. Big breath into the belly and brace before you descend. Break at hips and knees together, knees tracking over the middle of the foot. At least parallel. Drive up through midfoot, hips and chest rising at the same rate. If your hips shoot up first, drop the weight."},
+    {name:"Romanian Deadlift",sets:3,reps:"8-10",rest:"2:30",notes:"Soft knees locked in one position the whole set. Push the hips straight back, bar in contact with your thighs the whole way down. Stop at the hamstring stretch, usually mid-shin, not when the plates touch. Neutral spine. Drive hips forward to stand, no hyperextension at the top."},
+    {name:"Walking Lunge",sets:3,reps:"10/leg",rest:"2:00",notes:"Long step, front shin roughly vertical, back knee drops toward the floor. Torso upright. Push through the front heel to stand. Do not let the front knee cave inward."},
+    {name:"Standing Calf Raise",sets:3,reps:"12-15",rest:"60s",notes:"Full stretch at the bottom, full contraction at the top, 1s pause at each end. No bouncing."},
+  ]},
+  "Power + Athleticism":{type:"strength",color:"#FF47B8",day:"Wed",tag:"POWER + SPRINTS",duration:"~78 min",
+    goal:"Quality over fatigue. Every rep is meant to be fast. If output drops, the set is over even if reps remain. Sprints live here rather than on a cardio day because sprinting is power work, not conditioning. Elastic work first, then sprints, then strength, then the grind finisher.",
+    exercises:[
+    {name:"Box Jump or Broad Jump",sets:5,reps:"3",rest:"1:30",notes:"Box jump: land soft in a quarter squat, not a deep collapse. Step down between reps, never jump down. Full reset each rep. Broad jump: arms swing back, hips load, explode forward, land absorbing through the hips with knees tracking out."},
+    {name:"Med Ball Rotational Throw",sets:4,reps:"5/side",rest:"1:30",notes:"Athletic stance side-on to the wall. Rotate through the back hip, not the shoulders. Power starts at the ground and transfers through the trunk. Throw hard, reset, repeat."},
+    {name:"Lateral Bound",sets:3,reps:"6/side",rest:"1:30",notes:"Push off the outside leg, cover distance sideways, stick the landing on the opposite leg for a full second before the next rep. Knee tracks over the foot and does not cave in. Moved up ahead of sprints because elastic quality dies fast once you are fatigued."},
+    {name:"Sprints",sets:8,reps:"60-80m",rest:"walk back + 90s",notes:"Build into the first two reps at about 90% rather than launching flat out. Tall posture, relaxed jaw and hands, drive the knee up and punch the foot down under your hips. Full recovery between reps, this is not conditioning. STOP THE SET when reps visibly slow, even if you have not hit 8. Slow sprints only train slow sprinting."},
+    {name:"Trap Bar Deadlift or Hang Clean",sets:4,reps:"3-5",rest:"2:30",notes:"Trap bar: hips slightly higher than a squat, chest up, push the floor away and accelerate through the whole pull. This is a speed lift today, load around 70 to 80% and move it fast. Hang clean: bar at mid-thigh, violent hip extension, catch in a quarter squat with elbows up."},
+    {name:"Sled Push or Heavy Carry",sets:3,reps:"40-60 yd",rest:"2:00",notes:"Cut to 3 rounds now that sprints are in the session. Sled: low body angle, arms locked, drive with the legs in short powerful steps. Carry: farmer handles or dumbbells, tall posture, controlled turns."},
+  ]},
+  "Upper B":{type:"strength",color:"#E8FF47",day:"Fri",tag:"VERTICAL + CORE",duration:"~73 min",
+    goal:"Vertical push and pull emphasis, then flexion, rotation and lateral core. Second upper exposure of the week, which is where the hypertrophy actually comes from compared to hitting each pattern once.",
+    exercises:[
+    {name:"Overhead Press",sets:4,reps:"5-8",rest:"2:30",notes:"Standing, feet hip width, glutes and abs braced hard. Bar starts at the collarbone. Move your head back slightly as the bar passes your face, then push your head through at the top so the bar finishes over midfoot. Do not lean back. If your low back is arching, brace harder or drop the weight."},
+    {name:"Weighted Pull-up or Lat Pulldown",sets:4,reps:"6-10",rest:"2:30",notes:"Dead hang start, shoulders engaged. Drive elbows down and back. Chin clears the bar, 2s controlled lower. Do not kip. Add weight when you can hit the top of the range clean."},
+    {name:"Dip or Close-Grip Bench",sets:3,reps:"8-12",rest:"2:00",notes:"Dip: slight forward lean, elbows tracking back not flared, descend until upper arms are parallel to the floor. Stop there if you feel any shoulder pinch. Close-grip bench: hands just inside shoulder width, elbows tucked to about 30 degrees, touch at the lower sternum."},
+    {name:"Cable Row",sets:3,reps:"10-12",rest:"1:30",notes:"Tall chest, minimal torso swing. Pull to the navel, squeeze the shoulder blades, control the return and let the shoulders stretch forward slightly at the end."},
+    {name:"Rear Delt Fly",sets:3,reps:"15",rest:"superset",notes:"SUPERSET with the arm pairing below, rest 60s after the round. Hinge forward, slight elbow bend, lead with the elbows, no momentum."},
+    {name:"Hammer Curl + Tricep Pushdown",sets:3,reps:"10-12 each",rest:"60s",notes:"Curl: elbows pinned to your sides, neutral grip, no swinging. Pushdown: elbows fixed, full extension, controlled return. Run them back to back."},
+    {name:"Hanging Leg Raise",sets:3,reps:"10-15",rest:"60s",notes:"CORE BLOCK B. Controlled hang, no swinging. Posteriorly tilt the pelvis first, then raise the legs. The curl of the pelvis is the movement, not the height of the feet. Slow lowering. Bent knees if straight legs cause swing."},
+    {name:"Cable or Med Ball Woodchop",sets:3,reps:"12/side",rest:"45s",notes:"Rotate through the hips and trunk together. Arms stay long, they are not doing the work. Controlled return, do not let the stack yank you back."},
+    {name:"Side Plank with Reach-Through",sets:3,reps:"10/side",rest:"45s",notes:"Body in a straight line, hips high. Reach the top arm under your torso, rotate, then reach back to the ceiling. Hips stay lifted the entire time."},
+  ]},
+  "Lower B":{type:"strength",color:"#E8FF47",day:"Sat",tag:"HINGE EMPHASIS",duration:"~52 min",
+    goal:"Hinge-dominant second lower exposure. Deadlift volume stays low and heavy, then unilateral and posterior chain accessories. Reset your setup on every deadlift rep.",
+    exercises:[
+    {name:"Deadlift",sets:3,reps:"3-5",rest:"3:00",notes:"Bar over midfoot, shins nearly touching. Hinge down and grip, then pull the slack out of the bar before you move. Chest up, lats engaged like squeezing oranges in your armpits. Push the floor away, bar stays against the legs, hips and shoulders rise together. Lock out by squeezing glutes, do not lean back. Reset the setup every single rep."},
+    {name:"Bulgarian Split Squat",sets:3,reps:"8-10/leg",rest:"2:00",notes:"Rear foot elevated, front foot far enough forward that the front shin stays near vertical. Drop straight down, back knee toward the floor. Torso slightly forward for more glute, upright for more quad. Drive through the front heel."},
+    {name:"Hip Thrust",sets:3,reps:"10-12",rest:"2:00",notes:"Shoulder blades on the bench edge, feet planted so shins are vertical at the top. Ribs down, chin tucked. Drive through the heels, squeeze the glutes hard at lockout for a full second. Do not hyperextend the low back to get higher."},
+    {name:"Leg Curl",sets:3,reps:"12-15",rest:"1:30",notes:"Full range, controlled 3s lowering. Hips stay down on the pad, no lifting off to cheat the weight up."},
+  ]},
+  "VO2max Intervals":{type:"cardio",color:"#47FF8A",day:"Thu",tag:"VO2MAX · 4x4",duration:"~38 min",
+    goal:"The 4x4 protocol is the most reliable VO2max driver there is. Bike or row, not running, because Wednesday already gave you the sprint impact and stacking two high-impact leg days is how Achilles problems start. Alternate weeks with Jump Rope Conditioning.",
+    exercises:[
+      {name:"Interval 1",sets:1,reps:"4 min hard",notes:"Target 90-95% max HR by the end. Should feel genuinely hard from about 90 seconds in. If you could hold this for 8 minutes, go harder next time."},
+      {name:"Recovery 1",sets:1,reps:"3 min easy",notes:"Keep pedaling or rowing, do not stop dead. Active recovery clears lactate faster and keeps HR from crashing."},
+      {name:"Interval 2",sets:1,reps:"4 min hard",notes:"Match interval 1. Consistency across all four is the goal, not a hero first rep followed by three faders."},
+      {name:"Recovery 2",sets:1,reps:"3 min easy",notes:"Easy spin. Breathing should come most of the way back down."},
+      {name:"Interval 3",sets:1,reps:"4 min hard",notes:"This is the one that decides whether the session worked. Hold the same output."},
+      {name:"Recovery 3",sets:1,reps:"3 min easy",notes:"Easy spin."},
+      {name:"Interval 4",sets:1,reps:"4 min hard",notes:"Empty the tank. Last 60 seconds can go above target."},
+      {name:"Cooldown",sets:1,reps:"5 min easy",notes:"Do not skip. Log your average HR and output so you can see this number climb over the block."},
+  ]},
+  "Jump Rope Conditioning":{type:"cardio",color:"#47CFFF",day:"Thu (alt)",tag:"INTERVALS + IMPACT",duration:"~28 min",
+    goal:"Alternates with VO2max Intervals every other week. Lower aerobic ceiling than the 4x4 but it buys you calf and Achilles stiffness, coordination, and foot speed that a bike cannot. If your Achilles feels stiff in the morning, skip this week and do the bike instead.",
+    exercises:[
+      {name:"Jump Rope Intervals",sets:10,reps:"40s on / 20s off",notes:"Double unders or fast singles. Max sustainable effort on the 40s, not all-out sprinting. Stay on the balls of your feet, minimal knee bend, wrists driving the rope. Reset fast after trips, the clock does not stop."},
+      {name:"Rest",sets:1,reps:"3 min",notes:"Full recovery before Tabata. HR should come back under 120. Check your Garmin, do not eyeball it."},
+      {name:"Jump Rope Tabata",sets:8,reps:"20s on / 10s off",notes:"All-out every round. If you can hold the same pace across all 8 you did not rest long enough beforehand, or you are not going hard enough."},
+      {name:"Cooldown Walk",sets:1,reps:"4 min",notes:"Walk it out and stretch the calves. This is the session most likely to leave you stiff tomorrow."},
+  ]},
+  "Zone 2":{type:"cardio",color:"#47CFFF",day:"Add-on",tag:"AEROBIC BASE",duration:"30-45 min",
+    goal:"Two sessions per week now that intervals are in: after Upper A or Upper B, or on Sunday. Never before lower or power work. This is still the base that fat loss actually sits on, the intervals are for VO2max. HR 130-150, fully conversational.",
+    exercises:[
+      {name:"Zone 2 Run or Bike",sets:1,reps:"30-45 min",notes:"HR 130-150. Fully conversational pace. If you cannot speak in full sentences, slow down. This is where fat oxidation and aerobic base actually get built, not in the hard efforts."},
+  ]},
+};
+
+const SPLIT=[
+  {day:"Mon",workout:"Upper A",short:"UPP A",type:"strength"},
+  {day:"Tue",workout:"Lower A",short:"LOW A",type:"strength"},
+  {day:"Wed",workout:"Power + Athleticism",short:"PWR+SP",type:"strength"},
+  {day:"Thu",workout:"VO2max Intervals",short:"VO2",type:"cardio"},
+  {day:"Fri",workout:"Upper B",short:"UPP B",type:"strength"},
+  {day:"Sat",workout:"Lower B",short:"LOW B",type:"strength"},
+  {day:"Sun",workout:"Rest",short:"—",type:"rest"},
+];
+
+const TARGETS={calories:2250,protein:180,carbs:210,fat:60};
+const dkey=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+const FOOD_DAYS=(()=>{
+  const days=[],now=new Date(),dow=now.getDay();
+  const monday=new Date(now);
+  monday.setDate(now.getDate()+(dow===0?-6:1-dow));
+  for(let i=0;i<7;i++){const d=new Date(monday);d.setDate(monday.getDate()+i);days.push(dkey(d));}
+  return days;
+})();
+const WEEK_LABEL=(()=>{
+  const m=new Date(FOOD_DAYS[0]+"T12:00:00");
+  return m.toLocaleDateString("en-US",{month:"long",day:"numeric"}).toUpperCase();
+})();
+
+const TYPE_COLOR={strength:"#E8FF47",cardio:"#47CFFF",recovery:"#47FF8A",rest:"#555"};
+const DAY_NAMES=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+
+// STATE
+let state={
+  tab:"plan",
+  logs:{},
+  bodyweight:[],
+  foodLogs:{},
+  activeWorkout:null,
+  sessionSets:{},
+  sessionStart:null,
+  planView:"all",
+  expandedPlan:null,
+  selFoodDay:FOOD_DAYS.includes(dkey(new Date()))?dkey(new Date()):FOOD_DAYS[0],
+  foodEntry:{meal:"Breakfast",food:"",calories:"",protein:"",carbs:"",fat:""},
+  bwInput:"",
+};
+
+function load(){
+  try{
+    const r=localStorage.getItem("ironlog-v3");
+    if(!r)return;
+    const d=JSON.parse(r);
+    state.logs=d.logs||{};state.bodyweight=d.bodyweight||[];state.foodLogs=d.foodLogs||{};
+    // restore an in-progress session, but only if that workout still exists in PLANS
+    if(d.activeWorkout&&PLANS[d.activeWorkout]){
+      state.activeWorkout=d.activeWorkout;
+      state.sessionSets=d.sessionSets||{};
+      state.sessionStart=d.sessionStart||null;
+      // backfill any exercises added to the plan since the session started
+      PLANS[d.activeWorkout].exercises.forEach(ex=>{
+        if(!state.sessionSets[ex.name])
+          state.sessionSets[ex.name]=Array.from({length:ex.sets},()=>({weight:"",reps:"",done:false}));
+      });
+    }
+    if(d.tab&&["plan","log","nutrition","progress"].includes(d.tab))state.tab=d.tab;
+  }catch(e){}
+}
+
+function save(){
+  try{localStorage.setItem("ironlog-v3",JSON.stringify({
+    logs:state.logs,
+    bodyweight:state.bodyweight,
+    foodLogs:state.foodLogs,
+    activeWorkout:state.activeWorkout,
+    sessionSets:state.sessionSets,
+    sessionStart:state.sessionStart,
+    tab:state.tab
+  }));}catch(e){}
+}
+
+// debounced save for keystrokes, so typing a weight does not hammer localStorage
+let _saveT=null;
+function saveSoon(){clearTimeout(_saveT);_saveT=setTimeout(save,300);}
+
+// force a write whenever iOS is about to background or evict the app
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="hidden")save();});
+window.addEventListener("pagehide",save);
+window.addEventListener("blur",save);
+
+function showToast(msg){
+  const t=document.getElementById("toast");
+  t.textContent=msg;t.style.display="block";
+  setTimeout(()=>{t.style.display="none";},2500);
+}
+
+function switchTab(tab){
+  state.tab=tab;
+  document.querySelectorAll(".tab").forEach(el=>el.classList.remove("active"));
+  document.querySelectorAll(".nav-btn").forEach(el=>el.classList.remove("active"));
+  document.getElementById("tab-"+tab).classList.add("active");
+  document.querySelector(`.nav-btn[data-tab="${tab}"]`).classList.add("active");
+  render();
+}
+
+function dayTotals(day){
+  return (state.foodLogs[day]||[]).reduce((a,e)=>({
+    calories:a.calories+e.calories,protein:a.protein+e.protein,
+    carbs:a.carbs+e.carbs,fat:a.fat+e.fat
+  }),{calories:0,protein:0,carbs:0,fat:0});
+}
+
+// RENDER FUNCTIONS
+function renderWeekStrip(){
+  const el=document.getElementById("week-strip");
+  el.innerHTML=SPLIT.map(({day,workout,short,type})=>{
+    const col=TYPE_COLOR[type]||"#555";
+    const isOff=type==="rest";
+    return `<div class="week-day">
+      <div class="week-label">${day}</div>
+      <div class="week-pill" style="background:${isOff?"transparent":"#181818"};border-color:${isOff?"#1E1E1E":col+"44"};color:${isOff?"#555":col}">
+        ${isOff?"—":(short||workout.split(" ")[0])}
+      </div>
+    </div>`;
+  }).join("");
+  document.getElementById("total-sessions").textContent=Object.keys(state.logs).length;
+}
+
+function renderWarmup(name,col){
+  const w=WARMUPS[name];
+  if(!w)return"";
+  return`<div style="margin-top:14px;padding:12px;background:#0A0A0A;border:1px solid ${col}33;border-radius:6px">
+    <div style="font-size:9px;color:${col};letter-spacing:.12em;margin-bottom:10px">⚡ ${w.duration||"7-MIN"} WARM-UP</div>
+    ${w.steps.map((s,i)=>`
+      <div style="display:flex;gap:10px;margin-bottom:8px;align-items:flex-start">
+        <div style="font-size:9px;color:${col};min-width:14px;margin-top:1px">${i+1}</div>
+        <div style="flex:1">
+          <div style="font-size:11px;color:#F0F0F0">${s.name} <span style="color:${col};font-size:10px">· ${s.duration}</span></div>
+          <div style="font-size:9px;color:#555;margin-top:2px;line-height:1.4">${s.notes}</div>
+        </div>
+      </div>`).join("")}
+  </div>`;
+}
+
+function renderPlan(){
+  const el=document.getElementById("tab-plan");
+  const filtered=Object.entries(PLANS).filter(([,v])=>state.planView==="all"||v.type===state.planView);
+  el.innerHTML=`
+    <div class="filter-row">
+      <button class="filter-btn ${state.planView==="all"?"active-all":""}" onclick="setPlanView('all')">All</button>
+      <button class="filter-btn ${state.planView==="strength"?"active-strength":""}" onclick="setPlanView('strength')">Strength</button>
+      <button class="filter-btn ${state.planView==="cardio"?"active-cardio":""}" onclick="setPlanView('cardio')">Cardio</button>
+    </div>
+    ${filtered.map(([name,plan])=>{
+      const isC=plan.type==="cardio";
+      const col=plan.color||"#E8FF47";
+      const isExp=state.expandedPlan===name;
+      const exSlice=isExp?plan.exercises:plan.exercises.slice(0,4);
+      return `
+        <div class="plan-card" style="border-color:${isExp?col:"#1E1E1E"}" onclick="toggleExpand('${name.replace(/'/g,"\\'")}')">
+          <div class="plan-header">
+            <div style="flex:1">
+              ${plan.tag?`<span class="tag" style="background:${col}22;color:${col}">${plan.tag}</span>`:""}
+              <div class="plan-title" style="color:#F0F0F0">${name}</div>
+              <div class="plan-meta">${plan.day} · ${plan.duration||plan.exercises.length+" exercises"} · ${plan.exercises.length} ex</div>
+            </div>
+            <button class="btn" style="background:${col};color:#000;margin-left:10px;flex-shrink:0" onclick="event.stopPropagation();startWorkout('${name.replace(/'/g,"\\'")}')">Start</button>
+          </div>
+          ${isExp&&plan.goal?`<div class="goal-box" style="background:${col}12;border:1px solid ${col}30;color:${col}CC">${plan.goal}</div>`:""}
+          ${isExp?`
+            ${renderWarmup(name,col)}
+            <div style="font-size:9px;color:#555;letter-spacing:.12em;margin:14px 0 8px">EXERCISES</div>
+            <div class="ex-list">${plan.exercises.map(ex=>`
+              <div class="ex-row">
+                <div style="flex:1">
+                  <div class="ex-name">${ex.name}</div>
+                  <div class="ex-note">${ex.notes}</div>
+                  ${ex.rest?`<div style="font-size:9px;color:#444;margin-top:3px">Rest: ${ex.rest}</div>`:""}
+                </div>
+                <div class="ex-reps" style="color:${col}">${ex.sets>1?ex.sets+"x":""}${ex.reps}</div>
+              </div>`).join("")}</div>`:
+            `<div class="plan-chips">
+              ${exSlice.map(ex=>`<span class="chip">${ex.name}</span>`).join("")}
+              ${plan.exercises.length>4?`<span style="font-size:9px;color:#555">+${plan.exercises.length-4} more</span>`:""}
+            </div>`
+          }
+        </div>`;
+    }).join("")}`;
+}
+
+function fmtElapsed(){
+  if(!state.sessionStart)return "0:00";
+  const s=Math.floor((Date.now()-state.sessionStart)/1000);
+  return Math.floor(s/60)+":"+String(s%60).padStart(2,"0");
+}
+
+setInterval(()=>{
+  const el=document.getElementById("elapsed");
+  if(el&&state.activeWorkout)el.textContent=fmtElapsed();
+},1000);
+
+function renderLog(){
+  const el=document.getElementById("tab-log");
+  if(!state.activeWorkout){
+    el.innerHTML=`<div style="text-align:center;padding-top:60px">
+      <div style="font-size:14px;color:#555">No active session.</div>
+      <div style="font-size:11px;color:#555;margin-top:8px">Go to Plan to start one.</div>
+    </div>`;
+    return;
+  }
+  const plan=PLANS[state.activeWorkout];
+  const isC=plan.type==="cardio";
+  const col=plan.color||"#E8FF47";
+  el.innerHTML=`
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <div>
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:26px;color:${col}">${state.activeWorkout}</div>
+        <div style="font-size:9px;color:#555;letter-spacing:.1em">IN PROGRESS · <span id="elapsed">${fmtElapsed()}</span></div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <button class="filter-btn" style="border-color:#333" onclick="discardWorkout()">Discard</button>
+        <div style="width:8px;height:8px;border-radius:50%;background:${col}"></div>
+      </div>
+    </div>
+    ${plan.goal?`<div class="info-box" style="background:${col}12;border:1px solid ${col}30;color:${col}CC">🎯 ${plan.goal}</div>`:""}
+    ${renderWarmup(state.activeWorkout,col)}
+    <div style="font-size:9px;color:#555;letter-spacing:.12em;margin:16px 0 10px">EXERCISES</div>
+    ${plan.exercises.map((ex,ei)=>`
+      <div class="card">
+        <div style="font-size:13px;font-weight:500;margin-bottom:2px">${ex.name}</div>
+        <div style="font-size:10px;color:#555;margin-bottom:4px">${ex.sets>1?ex.sets+" sets · ":""}${ex.reps}${ex.rest?" · Rest: "+ex.rest:""}</div>
+        <div style="font-size:10px;color:#444;margin-bottom:12px;line-height:1.4">${ex.notes}</div>
+        ${isC?`
+          <div style="display:flex;align-items:center;gap:10px">
+            <button class="done-btn ${(state.sessionSets[ex.name]||[{}])[0]?.done?"done":""}"
+              style="border-color:${col};${(state.sessionSets[ex.name]||[{}])[0]?.done?"background:"+col+";border-color:"+col:""}"
+              onclick="toggleCardioSet('${ex.name.replace(/'/g,"\\'")}')">✓</button>
+            <input type="text" placeholder="Time / distance / notes"
+              value="${((state.sessionSets[ex.name]||[{}])[0]?.reps||"").replace(/"/g,"&quot;")}"
+              oninput="updateCardioNote('${ex.name.replace(/'/g,"\\'")}',this.value)" style="flex:1"/>
+          </div>`:`
+          <div class="set-grid" style="margin-bottom:6px">
+            <span class="set-label">SET</span><span class="set-label">LBS</span><span class="set-label">REPS</span><span></span>
+          </div>
+          ${(state.sessionSets[ex.name]||[]).map((set,si)=>`
+            <div class="set-grid">
+              <span style="font-size:11px;color:#555">Set ${si+1}</span>
+              <input type="number" placeholder="—" value="${set.weight||""}" oninput="updateSet('${ex.name.replace(/'/g,"\\'")}',${si},'weight',this.value)"/>
+              <input type="number" placeholder="—" value="${set.reps||""}" oninput="updateSet('${ex.name.replace(/'/g,"\\'")}',${si},'reps',this.value)"/>
+              <button class="done-btn ${set.done?"done":""}" style="${set.done?"background:#E8FF47;border-color:#E8FF47":""}" onclick="toggleSet('${ex.name.replace(/'/g,"\\'")}',${si})">✓</button>
+            </div>`).join("")}
+        `}
+      </div>`).join("")}
+    <button class="btn-full" style="background:${col};color:#000" onclick="finishWorkout()">✓ Finish & Save Session</button>`;
+}
+
+function renderNutrition(){
+  const el=document.getElementById("tab-nutrition");
+  const t=dayTotals(state.selFoodDay);
+  const dayName=DAY_NAMES[new Date(state.selFoodDay+"T12:00:00").getDay()];
+  const entries=state.foodLogs[state.selFoodDay]||[];
+  const meals=["Breakfast","Lunch","Dinner","Pre-workout","Post-workout","Snack"];
+
+  el.innerHTML=`
+    <div class="section-label">— WEEK OF ${WEEK_LABEL}</div>
+    <div class="info-box" style="background:#47CFFF12;border:1px solid #47CFFF30;color:#47CFFFCC;margin-bottom:16px">
+      Log everything you eat this week. Share with me after 7 days and I'll analyze how your diet is affecting your body comp.
+    </div>
+    <div class="day-tabs">
+      ${FOOD_DAYS.map(d=>{
+        const hasD=(state.foodLogs[d]||[]).length>0;
+        const dTot=dayTotals(d);
+        const dName=DAY_NAMES[new Date(d+"T12:00:00").getDay()];
+        return `<button class="day-tab ${d===state.selFoodDay?"active":hasD?"has-data":""}" onclick="selFoodDay('${d}')">
+          <div>${dName}</div><div style="font-size:8px;margin-top:1px">${hasD?dTot.calories:"—"}</div>
+        </button>`;
+      }).join("")}
+    </div>
+    <div class="card" style="margin-bottom:14px">
+      <div style="font-size:10px;color:#555;letter-spacing:.12em;margin-bottom:12px">${dayName} TOTALS</div>
+      <div class="macro-grid">
+        ${[[t.calories,TARGETS.calories,"KCAL","#F0F0F0"],[t.protein,TARGETS.protein,"PRO","#E8FF47"],[t.carbs,TARGETS.carbs,"CARB","#47CFFF"],[t.fat,TARGETS.fat,"FAT","#FF47B8"]].map(([val,target,label,col])=>`
+          <div>
+            <div class="macro-val" style="color:${val>=target?"#47FF8A":col}">${val}</div>
+            <div class="macro-lbl">${label}/${target}</div>
+            <div class="macro-bar"><div class="macro-fill" style="width:${Math.min((val/target)*100,100)}%;background:${col}"></div></div>
+          </div>`).join("")}
+      </div>
+    </div>
+    <div class="card" style="margin-bottom:14px">
+      <div style="font-size:10px;color:#555;letter-spacing:.12em;margin-bottom:12px">ADD FOOD</div>
+      <div style="margin-bottom:8px">
+        <select id="fe-meal" onchange="updateFoodEntry('meal',this.value)">
+          ${meals.map(m=>`<option ${state.foodEntry.meal===m?"selected":""}>${m}</option>`).join("")}
+        </select>
+      </div>
+      <div style="margin-bottom:8px">
+        <input id="fe-food" type="text" placeholder="Food / meal description" value="${state.foodEntry.food.replace(/"/g,"&quot;")}" oninput="updateFoodEntry('food',this.value)"/>
+      </div>
+      <div class="form-grid">
+        ${[["calories","Kcal","#F0F0F0"],["protein","Pro g","#E8FF47"],["carbs","Carb g","#47CFFF"],["fat","Fat g","#FF47B8"]].map(([f,label,col])=>`
+          <div>
+            <div class="form-label" style="color:${col}">${label}</div>
+            <input type="number" placeholder="0" value="${state.foodEntry[f]||""}" oninput="updateFoodEntry('${f}',this.value)"/>
+          </div>`).join("")}
+      </div>
+      <button class="btn btn-full" style="background:#E8FF47;color:#000;margin-top:0" onclick="addFood()">+ Log Food</button>
+    </div>
+    ${entries.length>0?`
+      <div style="font-size:10px;color:#555;letter-spacing:.12em;margin-bottom:10px">LOGGED TODAY</div>
+      ${meals.map(meal=>{
+        const mEntries=entries.filter(e=>e.meal===meal);
+        if(!mEntries.length)return"";
+        return`<div style="margin-bottom:12px">
+          <div style="font-size:9px;color:#555;letter-spacing:.1em;margin-bottom:6px">${meal.toUpperCase()}</div>
+          ${mEntries.map(e=>`
+            <div class="food-entry">
+              <div style="flex:1">
+                <div style="font-size:11px">${e.food}</div>
+                <div style="font-size:9px;color:#555;margin-top:2px">${e.calories}kcal · ${e.protein}g P · ${e.carbs}g C · ${e.fat}g F</div>
+              </div>
+              <button class="rm-btn" onclick="removeFood('${state.selFoodDay}',${e.id})">×</button>
+            </div>`).join("")}
+        </div>`;
+      }).join("")}`:""}`;
+}
+
+function renderProgress(){
+  const el=document.getElementById("tab-progress");
+  const total=Object.keys(state.logs).length;
+  const strS=Object.values(state.logs).filter(l=>l.type==="strength").length;
+  const carS=Object.values(state.logs).filter(l=>l.type==="cardio").length;
+  const wkS=Object.keys(state.logs).filter(d=>(new Date()-new Date(d))/86400000<=7).length;
+
+  // Volume chart data
+  const volData=Object.entries(state.logs).filter(([,e])=>e.type==="strength").slice(-8).map(([date,entry])=>{
+    let v=0;Object.values(entry.sets||{}).forEach(sets=>sets.forEach(s=>{if(s.done&&s.weight&&s.reps)v+=parseFloat(s.weight||0)*parseFloat(s.reps||0);}));
+    return{date:date.slice(5),volume:Math.round(v)};
+  });
+  const maxVol=Math.max(...volData.map(d=>d.volume),1);
+
+  // BW chart
+  const bwData=state.bodyweight.slice(-10);
+  const maxBW=Math.max(...bwData.map(d=>d.weight),1);
+  const minBW=Math.min(...bwData.map(d=>d.weight),maxBW-1);
+  const bwRange=maxBW-minBW||1;
+
+  const history=Object.entries(state.logs).sort((a,b)=>b[0].localeCompare(a[0])).slice(0,8);
+
+  el.innerHTML=`
+    <div class="section-label">— OVERVIEW</div>
+    <div class="stats-grid">
+      ${[[wkS,"THIS WEEK","#F0F0F0"],[strS,"STRENGTH","#E8FF47"],[carS,"CARDIO","#47CFFF"]].map(([val,label,col])=>`
+        <div class="stat-card"><div class="stat-val" style="color:${col}">${val}</div><div class="stat-lbl">${label}</div></div>`).join("")}
+    </div>
+    <div class="goal-card">
+      <div style="font-size:9px;color:#47FF8A;letter-spacing:.14em;margin-bottom:10px">BODY COMPOSITION GOAL</div>
+      <div class="goal-grid">
+        ${[["175 lb","Current weight","#F0F0F0"],["158-162 lb","Target weight","#47FF8A"],["~18-20%","Est. body fat","#F0F0F0"],["10-12%","Target body fat","#47FF8A"]].map(([val,label,col])=>`
+          <div><div class="goal-val" style="color:${col}">${val}</div><div class="goal-lbl">${label}</div></div>`).join("")}
+      </div>
+      <div style="margin-top:12px;padding:8px 10px;background:#0F1A0F;border-radius:5px;font-size:10px;color:#47FF8AAA;line-height:1.5">Timeline: 3-4 months at 500 kcal deficit + consistent training</div>
+    </div>
+    <div class="card" style="margin-bottom:18px">
+      <div style="font-size:10px;color:#555;letter-spacing:.12em;margin-bottom:12px">DAILY TARGETS</div>
+      <div class="targets-grid">
+        ${[["2,250","Calories","#F0F0F0"],["180g","Protein","#E8FF47"],["210g","Carbs","#47CFFF"],["60g","Fat","#FF47B8"]].map(([val,label,col])=>`
+          <div class="target-box"><div class="target-val" style="color:${col}">${val}</div><div class="target-lbl">${label}/day</div></div>`).join("")}
+      </div>
+    </div>
+    ${volData.length>0?`
+      <div class="card" style="margin-bottom:18px">
+        <div style="font-size:10px;color:#555;letter-spacing:.12em;margin-bottom:8px">LIFT VOLUME (LBS)</div>
+        <div class="bar-chart">
+          ${volData.map(d=>`<div class="bar-col">
+            <div class="bar-inner" style="height:${Math.round((d.volume/maxVol)*72)+8}px"></div>
+            <div class="bar-date">${d.date}</div>
+          </div>`).join("")}
+        </div>
+      </div>`:""}
+    <div class="card" style="margin-bottom:18px">
+      <div style="font-size:10px;color:#555;letter-spacing:.12em;margin-bottom:12px">BODYWEIGHT (LBS)</div>
+      <div class="bw-row">
+        <input type="number" placeholder="Today's weight" id="bw-input" value="${state.bwInput}"/>
+        <button class="btn btn-accent" style="white-space:nowrap;flex-shrink:0;padding:8px 14px;font-size:11px" onclick="logBW()">Log</button>
+      </div>
+      ${bwData.length>1?`
+        <div style="position:relative;height:80px;margin-top:8px;overflow:hidden">
+          <svg width="100%" height="80" viewBox="0 0 300 80" preserveAspectRatio="none">
+            <polyline fill="none" stroke="#E8FF47" stroke-width="2"
+              points="${bwData.map((d,i)=>`${(i/(bwData.length-1))*300},${80-((d.weight-minBW)/bwRange)*72}`).join(" ")}"/>
+            ${bwData.map((d,i)=>`<circle cx="${(i/(bwData.length-1))*300}" cy="${80-((d.weight-minBW)/bwRange)*72}" r="3" fill="#E8FF47"/>`).join("")}
+          </svg>
+        </div>`:`<div style="font-size:11px;color:#555">Log daily to track trends.</div>`}
+    </div>
+    <div style="font-size:10px;color:#555;letter-spacing:.12em;margin-bottom:10px">RECENT SESSIONS</div>
+    ${history.length>0?history.map(([date,entry])=>{
+      const col=entry.type==="cardio"?"#47CFFF":"#E8FF47";
+      const sets=Object.values(entry.sets||{}).reduce((a,sets)=>a+sets.filter(s=>s.done).length,0);
+      return`<div class="session-row">
+        <div>
+          <div><span class="session-dot" style="background:${col}"></span><span class="session-name">${entry.workout}</span></div>
+          <div class="session-meta">${sets} sets · ${date}</div>
+        </div>
+      </div>`;
+    }).join(""):`<div style="font-size:11px;color:#555">No sessions yet.</div>`}`;
+}
+
+function render(){
+  renderWeekStrip();
+  if(state.tab==="plan")renderPlan();
+  else if(state.tab==="log")renderLog();
+  else if(state.tab==="nutrition")renderNutrition();
+  else if(state.tab==="progress")renderProgress();
+}
+
+// ACTIONS
+function setPlanView(v){state.planView=v;renderPlan();}
+function toggleExpand(name){state.expandedPlan=state.expandedPlan===name?null:name;renderPlan();}
+
+function startWorkout(name){
+  const plan=PLANS[name];
+  state.sessionSets={};
+  plan.exercises.forEach(ex=>{
+    state.sessionSets[ex.name]=Array.from({length:ex.sets},()=>({weight:"",reps:"",done:false}));
+  });
+  state.activeWorkout=name;
+  state.sessionStart=Date.now();
+  save();
+  switchTab("log");
+}
+
+function updateSet(ex,i,field,val){
+  if(state.sessionSets[ex]&&state.sessionSets[ex][i]){state.sessionSets[ex][i][field]=val;saveSoon();}
+}
+
+function toggleSet(ex,i){
+  if(state.sessionSets[ex]&&state.sessionSets[ex][i]){
+    state.sessionSets[ex][i].done=!state.sessionSets[ex][i].done;
+    save();renderLog();
+  }
+}
+
+function toggleCardioSet(ex){
+  if(state.sessionSets[ex]&&state.sessionSets[ex][0]){
+    state.sessionSets[ex][0].done=!state.sessionSets[ex][0].done;
+    save();renderLog();
+  }
+}
+
+function updateCardioNote(ex,val){
+  if(state.sessionSets[ex]&&state.sessionSets[ex][0]){state.sessionSets[ex][0].reps=val;saveSoon();}
+}
+
+function finishWorkout(){
+  const dk=dkey(new Date());
+  const plan=PLANS[state.activeWorkout];
+  state.logs[dk]={workout:state.activeWorkout,type:plan.type,sets:JSON.parse(JSON.stringify(state.sessionSets))};
+  state.activeWorkout=null;state.sessionSets={};state.sessionStart=null;
+  save();showToast("Session saved! 💪");switchTab("progress");
+}
+
+function discardWorkout(){
+  if(!confirm("Discard this session? Everything logged in it will be lost."))return;
+  state.activeWorkout=null;state.sessionSets={};state.sessionStart=null;
+  save();showToast("Session discarded");switchTab("plan");
+}
+
+function selFoodDay(d){state.selFoodDay=d;renderNutrition();}
+
+function updateFoodEntry(field,val){state.foodEntry[field]=val;}
+
+function addFood(){
+  if(!state.foodEntry.food||!state.foodEntry.calories)return;
+  const e={...state.foodEntry,id:Date.now(),calories:+state.foodEntry.calories,protein:+state.foodEntry.protein||0,carbs:+state.foodEntry.carbs||0,fat:+state.foodEntry.fat||0};
+  if(!state.foodLogs[state.selFoodDay])state.foodLogs[state.selFoodDay]=[];
+  state.foodLogs[state.selFoodDay].push(e);
+  state.foodEntry={meal:state.foodEntry.meal,food:"",calories:"",protein:"",carbs:"",fat:""};
+  save();showToast("Food logged!");renderNutrition();
+}
+
+function removeFood(day,id){
+  state.foodLogs[day]=(state.foodLogs[day]||[]).filter(e=>e.id!==id);
+  save();renderNutrition();
+}
+
+function logBW(){
+  const input=document.getElementById("bw-input");
+  const val=parseFloat(input.value);
+  if(!val)return;
+  const entry={date:dkey(new Date()),weight:val};
+  state.bodyweight=state.bodyweight.filter(e=>e.date!==entry.date);
+  state.bodyweight.push(entry);
+  state.bodyweight.sort((a,b)=>a.date.localeCompare(b.date));
+  state.bwInput="";
+  save();showToast("Weight logged!");renderProgress();
+}
+
+// NAV
+document.querySelectorAll(".nav-btn").forEach(btn=>{
+  btn.addEventListener("click",()=>switchTab(btn.dataset.tab));
+});
+
+// INIT
+load();switchTab(state.tab);
+</script>
+</body>
+</html>
